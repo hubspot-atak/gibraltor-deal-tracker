@@ -10,12 +10,27 @@ dotenv.config();
 const HUBSPOT_TOKEN = process.env.HUBSPOT_TOKEN;
 if (!HUBSPOT_TOKEN) {
   console.error('Missing HUBSPOT_TOKEN in environment. See .env.example');
+  // Fail fast in production so we don't attempt requests with an undefined token.
+  // If you want to allow running without a token for local dev, set NODE_ENV=development.
+  if (process.env.NODE_ENV === 'production') {
+    console.error('Exiting because HUBSPOT_TOKEN is required in production.');
+    process.exit(1);
+  }
 }
 
 const app = express();
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
+
+// Lightweight request logging for the deal lookup endpoint to help debugging in production.
+app.use((req, res, next) => {
+  if (req.method === 'POST' && req.path === '/api/deal-lookup') {
+    const { email, dealId } = req.body || {};
+    console.log('[request] POST /api/deal-lookup', { email: typeof email === 'string' ? email : undefined, dealId });
+  }
+  next();
+});
 
 const HUBSPOT_BASE = 'https://api.hubapi.com';
 
